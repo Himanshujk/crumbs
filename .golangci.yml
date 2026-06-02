@@ -1,0 +1,47 @@
+version: "2"
+
+run:
+  timeout: 3m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - revive
+    - gosec
+    - unused
+    - ineffassign
+    - misspell
+    - unconvert
+
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: false
+        - name: var-naming
+        - name: unexported-return
+          disabled: true   # constructors deliberately return *Error
+    gosec:
+      excludes:
+        - G104   # errcheck already covers unhandled errors
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - errcheck
+      - path: examples/
+        linters:
+          - errcheck
+          - gosec
+          - revive
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

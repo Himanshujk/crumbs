@@ -29,7 +29,7 @@ func DemonstrateBasicUsage() {
 
 	// Print with details using FormatError
 	fmt.Println("\nFormatted error with crumbs:")
-	fmt.Println(crumbs.FormatError(err2, false, true))
+	fmt.Println(crumbs.FormatError(err2, true))
 	fmt.Println()
 
 	// Example 3: Wrapping an existing error
@@ -38,9 +38,9 @@ func DemonstrateBasicUsage() {
 	wrappedErr := crumbs.WrapError(ctx, baseErr, "database connection failed",
 		"db_host", "localhost",
 		"db_port", 5432)
-	fmt.Println(wrappedErr)	// Print with details
+	fmt.Println(wrappedErr) // Print with details
 	fmt.Println("\nFormatted wrapped error:")
-	fmt.Println(crumbs.FormatError(wrappedErr, false, true))
+	fmt.Println(crumbs.FormatError(wrappedErr, true))
 	fmt.Println()
 
 	// Example 4: Using errors.Is with wrapped errors

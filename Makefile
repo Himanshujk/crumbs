@@ -1,11 +1,16 @@
-.PHONY: test benchmark coverage lint clean
+.PHONY: test test-fuzz benchmark coverage lint clean
 
 # Default target
 all: test lint benchmark
 
-# Run all tests
+# Run all tests with the race detector
 test:
-	go test -v ./...
+	go test -race -count=1 -v ./...
+
+# Run all fuzz tests for a short period (smoke test, not a full corpus build)
+test-fuzz:
+	go test -run=NONE -fuzz=FuzzAddCrumb -fuzztime=10s .
+	go test -run=NONE -fuzz=FuzzNewError -fuzztime=10s .
 
 # Run benchmarks
 benchmark:
@@ -22,8 +27,8 @@ lint:
 		echo "Running golangci-lint..."; \
 		golangci-lint run ./...; \
 	else \
-		echo "golangci-lint not found, installing..."; \
-		go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+		echo "golangci-lint not found, installing v2.6.0..."; \
+		go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.6.0; \
 		golangci-lint run ./...; \
 	fi
 
@@ -35,7 +40,8 @@ clean:
 help:
 	@echo "Available targets:"
 	@echo "  all        : Run tests, linter and benchmarks"
-	@echo "  test       : Run all tests"
+	@echo "  test       : Run all tests with the race detector"
+	@echo "  test-fuzz  : Run fuzz suites for 10s each (smoke test)"
 	@echo "  benchmark  : Run all benchmarks"
 	@echo "  coverage   : Generate test coverage report"
 	@echo "  lint       : Run golangci-lint"

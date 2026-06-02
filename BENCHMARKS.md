@@ -15,12 +15,8 @@ The benchmarks in `benchmark_test.go` compare the performance of:
    - Adding multiple crumbs at once
    - Retrieving crumbs from context
 
-3. **Stack trace impact**
-   - Error creation with stack traces enabled
-   - Error creation with stack traces disabled
-
-4. **Error formatting**
-   - Formatting errors with and without stack traces
+3. **Error formatting**
+   - Formatting errors with and without crumbs
 
 ## Running the Benchmarks
 
@@ -60,5 +56,4 @@ BenchmarkCrumbsNew-8                   4672731       256.4 ns/op        208 B/op
 ## Performance Considerations
 
 - The Crumbs library adds additional context and capabilities to errors, which comes with some overhead
-- Stack trace capture is particularly expensive - only enable it when needed
 - For high-performance applications, consider the tradeoff between rich error information and raw performance

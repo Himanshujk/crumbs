@@ -76,7 +76,7 @@ func RunExample() {
 		fmt.Println(err)
 
 		fmt.Println("\nDetailed error with crumbs:")
-		fmt.Println(crumbs.FormatError(err, false, true))
+		fmt.Println(crumbs.FormatError(err, true))
 	}
 
 	// Show crumbs explicitly
