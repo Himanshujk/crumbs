@@ -7,7 +7,6 @@ import (
 	"github.com/sri-shubham/crumbs/examples/context_example"
 	"github.com/sri-shubham/crumbs/examples/logging_example"
 	"github.com/sri-shubham/crumbs/examples/middleware_example"
-	"github.com/sri-shubham/crumbs/examples/stack_example"
 	"github.com/sri-shubham/crumbs/examples/std_errors_example"
 )
 
@@ -25,11 +24,6 @@ func main() {
 	fmt.Println("CONTEXT AND CRUMBS EXAMPLE")
 	fmt.Println("====================================")
 	context_example.RunExample()
-
-	fmt.Println("\n\n====================================")
-	fmt.Println("STACK TRACES EXAMPLE")
-	fmt.Println("====================================")
-	stack_example.DemonstrateStackTraces()
 
 	fmt.Println("\n\n====================================")
 	fmt.Println("LOGGING INTEGRATION EXAMPLE")

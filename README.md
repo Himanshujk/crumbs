@@ -14,7 +14,7 @@ Crumbs is a rich observability library for Go that bridges the gap between error
 - **Logger Enrichment**: Feed your structured logger (like `slog`) with rich context captured deep within your application logic
 - **Context Integration**: Seamlessly propagate observability data via Go's `context.Context`
 - **Standard Library Compatible**: Works seamlessly with `errors.Is`, `errors.As`, and `errors.Unwrap`
-- **Zero-Allocation Hot Paths**: Optimized for high-performance applications with zero-allocation operations for common tasks
+- **Low-Allocation Hot Paths**: Optimized for high-performance applications; common operations stay at 1–2 allocations (see benchmarks below)
 
 ## Installation
 
@@ -41,14 +41,15 @@ func main() {
         "userID", "user-abc",
     )
     
-    // Create a new error with additional crumbs
+    // Create a new error with additional crumbs.
+    // `New` / `Wrap` are aliases for `NewError` / `WrapError`.
     err := crumbs.New(ctx, "operation failed",
         "operation", "getData",
         "status", 500,
     )
     
     // Print detailed error with crumbs
-    fmt.Println(crumbs.FormatError(err, false, true))
+    fmt.Println(crumbs.FormatError(err, true))
     
     // Works with standard errors package
     baseErr := errors.New("connection failed")
@@ -115,27 +116,14 @@ for _, c := range allCrumbs {
 }
 ```
 
-### Stack Traces
-
-Stack traces are disabled by default for performance reasons but can be enabled when needed:
-
-```go
-// Enable stack traces globally and set depth (0 for unlimited)
-crumbs.ConfigureStackTraces(true, 32)
-
-// Force a stack trace for a specific error
-err := crumbs.New(ctx, "critical error").(*crumbs.Error)
-err = err.ForceStack()
-```
-
 ### Error Formatting
 
 ```go
 // Format error with crumbs
-formatted := crumbs.FormatError(err, false, true)
+formatted := crumbs.FormatError(err, true)
 
-// Format with stack trace
-formatted := crumbs.FormatError(err, true, true)
+// Format without crumbs (just the message chain)
+formatted := crumbs.FormatError(err, false)
 ```
 
 ### Extracting Data
@@ -149,15 +137,25 @@ if cerr, ok := err.(*crumbs.Error); ok {
     for _, c := range allCrumbs {
         fmt.Printf("Key: %s, Value: %v\n", c.Key, c.Value)
     }
-    
-    // Get the root stack trace (safely preserved from where the error originated)
-    stack := cerr.GetStack()
 }
 ```
 
 ## Logging Integration
 
-Crumbs integrates seamlessly with modern structured logging like `log/slog`:
+Crumbs integrates seamlessly with modern structured logging like `log/slog`.
+For the quickest path, use the first-class adapter at
+[`integrations/slog`](./integrations/slog) which extracts crumbs automatically
+from both context and errors:
+
+```go
+import crumbslog "github.com/sri-shubham/crumbs/integrations/slog"
+
+log := crumbslog.New(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+log.Error(ctx, "operation failed", "error", err) // crumbs splatted automatically
+```
+
+If you prefer to wire `slog` yourself, the patterns below show manual
+extraction:
 
 ```go
 import "log/slog"
@@ -201,9 +199,9 @@ See the [examples](./examples) directory for comprehensive usage examples:
 
 - Basic usage patterns
 - Context integration
-- Stack traces
 - Logging integration
 - Standard library errors compatibility
+- HTTP middleware
 
 ## Integrations
 
@@ -229,19 +227,16 @@ goos: darwin
 goarch: arm64
 pkg: github.com/sri-shubham/crumbs
 cpu: Apple M1
-BenchmarkErrorsNew-8                    85283263                13.82 ns/op           16 B/op           1 allocs/op
-BenchmarkCrumbsNew-8                    45591188                27.23 ns/op           80 B/op           1 allocs/op
-BenchmarkCrumbsNewWithCrumbs-8          22543290                56.04 ns/op          176 B/op           2 allocs/op
-BenchmarkErrorsWrap-8                   14096294                82.06 ns/op           56 B/op           2 allocs/op
-BenchmarkCrumbsWrap-8                   45918513                26.96 ns/op           80 B/op           1 allocs/op
-BenchmarkCrumbsWrapWithCrumbs-8         21582700                55.39 ns/op          176 B/op           2 allocs/op
-BenchmarkAddCrumb-8                     19820527                60.57 ns/op          104 B/op           3 allocs/op
-BenchmarkAddMultipleCrumbs-8            16305519                73.32 ns/op          168 B/op           3 allocs/op
-BenchmarkGetCrumbs-8                    43355341                27.47 ns/op           96 B/op           1 allocs/op
-BenchmarkNewWithStackTraceEnabled-8       904336              1322 ns/op             784 B/op           4 allocs/op
-BenchmarkNewWithStackTraceDisabled-8    45363045                26.17 ns/op           80 B/op           1 allocs/op
-BenchmarkFormatError-8                   4431264               271.9 ns/op           184 B/op           8 allocs/op
-BenchmarkFormatErrorWithStack-8          1276100               935.1 ns/op          1872 B/op          24 allocs/op
+BenchmarkErrorsNew-8                         85283263                13.82 ns/op           16 B/op           1 allocs/op
+BenchmarkCrumbsNewError-8                    45591188                27.23 ns/op           80 B/op           1 allocs/op
+BenchmarkCrumbsNewErrorWithCrumbs-8          22543290                56.04 ns/op          176 B/op           2 allocs/op
+BenchmarkErrorsWrap-8                        14096294                82.06 ns/op           56 B/op           2 allocs/op
+BenchmarkCrumbsWrapError-8                   45918513                26.96 ns/op           80 B/op           1 allocs/op
+BenchmarkCrumbsWrapErrorWithCrumbs-8         21582700                55.39 ns/op          176 B/op           2 allocs/op
+BenchmarkAddCrumb-8                          19820527                60.57 ns/op          104 B/op           3 allocs/op
+BenchmarkAddMultipleCrumbs-8                 16305519                73.32 ns/op          168 B/op           3 allocs/op
+BenchmarkGetCrumbs-8                         43355341                27.47 ns/op           96 B/op           1 allocs/op
+BenchmarkFormatError-8                        4431264               271.9 ns/op           184 B/op           8 allocs/op
 ```
 
 For more detailed benchmark information and analysis, see [BENCHMARKS.md](./BENCHMARKS.md).

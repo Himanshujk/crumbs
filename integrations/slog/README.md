@@ -51,8 +51,21 @@ func main() {
 	// Create an error with crumbs
 	err := crumbs.New(ctx, "database connection failed", "db_host", "localhost")
 
-	// Log error - error crumbs AND context crumbs are included
-	log.Error(ctx, "operation failed", err)
-	// Output: {"time":"...", "level":"ERROR", "msg":"operation failed", "error":"database connection failed", "db_host":"localhost", "request_id":"req-123"}
+	// Log error using the slog-style key/value pairing. The adapter
+	// stringifies error values and splats crumbs from the first
+	// *crumbs.Error it finds in the args.
+	log.Error(ctx, "operation failed", "error", err)
+	// Output: {"time":"...", "level":"ERROR", "msg":"operation failed", "error":"database connection failed: ...", "db_host":"localhost", "request_id":"req-123"}
 }
+```
+
+### Derived loggers
+
+`Adapter.With(args ...any)` returns a child `logger.Logger` that automatically
+attaches the supplied key/value pairs to every subsequent call, mirroring
+`slog.Logger.With`:
+
+```go
+reqLog := log.With("request_id", "req-123")
+reqLog.Info(ctx, "handling request")
 ```

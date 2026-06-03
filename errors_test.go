@@ -30,12 +30,7 @@ func TestNewError(t *testing.T) {
 	})
 
 	t.Run("with crumbs", func(t *testing.T) {
-		err := NewError(ctx, "test error", "key1", "value1", "key2", 42)
-
-		cerr, ok := err.(*Error)
-		if !ok {
-			t.Fatal("Expected *Error type")
-		}
+		cerr := NewError(ctx, "test error", "key1", "value1", "key2", 42)
 
 		crumbs := crumbsToMap(cerr.GetCrumbs())
 		if crumbs["key1"] != "value1" {
@@ -207,11 +202,7 @@ func TestContextCrumbs(t *testing.T) {
 	}
 
 	// Check that crumbs are included in errors
-	err := NewError(ctx, "test error")
-	cerr, ok := err.(*Error)
-	if !ok {
-		t.Fatal("Expected *Error type")
-	}
+	cerr := NewError(ctx, "test error")
 
 	errCrumbs := crumbsToMap(cerr.GetCrumbs())
 	if errCrumbs["ctx1"] != "value1" || errCrumbs["ctx2"] != 42 {
@@ -273,92 +264,29 @@ func TestAddCrumb(t *testing.T) {
 	})
 }
 
-func TestStackTrace(t *testing.T) {
-	ctx := context.Background()
-	origcaptureStack := captureStack
-
-	t.Run("capture disabled", func(t *testing.T) {
-		captureStack = false
-		err := NewError(ctx, "test error").(*Error)
-
-		if len(err.GetStack()) > 0 {
-			t.Error("Stack trace should not be captured when disabled")
-		}
-	})
-
-	t.Run("capture enabled", func(t *testing.T) {
-		captureStack = true
-		err := NewError(ctx, "test error").(*Error)
-
-		if len(err.GetStack()) == 0 {
-			t.Error("Stack trace should be captured when enabled")
-		}
-	})
-
-	t.Run("force stack", func(t *testing.T) {
-		captureStack = false
-		err := NewError(ctx, "test error").(*Error)
-		err = err.ForceStack()
-
-		if len(err.GetStack()) == 0 {
-			t.Error("Stack trace should be captured when forced")
-		}
-	})
-
-	t.Run("stack depth", func(t *testing.T) {
-		captureStack = true
-		origDepth := stackTraceDepth
-		stackTraceDepth = 2
-
-		err := NewError(ctx, "test error").(*Error)
-
-		// Check that frames were limited
-		if len(err.GetStack()) > 5 {
-			t.Errorf("Expected limited stack frames, got %d", len(err.GetStack()))
-		}
-
-		stackTraceDepth = origDepth
-	})
-
-	// Restore original setting
-	captureStack = origcaptureStack
-}
-
 func TestFormatError(t *testing.T) {
 	ctx := context.Background()
-	captureStack = true
-	defer func() { captureStack = false }()
-
 	err := NewError(ctx, "test error", "key1", "value1")
 
 	t.Run("basic format", func(t *testing.T) {
-		formatted := FormatError(err, false, false)
+		formatted := FormatError(err, false)
 		if !strings.Contains(formatted, "test error") {
 			t.Errorf("Formatted error should contain message, got: %s", formatted)
 		}
 	})
 
 	t.Run("with crumbs", func(t *testing.T) {
-		formatted := FormatError(err, false, true)
+		formatted := FormatError(err, true)
 		if !strings.Contains(formatted, "key1") || !strings.Contains(formatted, "value1") {
 			t.Errorf("Formatted error should contain crumbs, got: %s", formatted)
 		}
 	})
 
-	t.Run("with stack", func(t *testing.T) {
-		formatted := FormatError(err, true, false)
-		if !strings.Contains(formatted, "Stack trace") {
-			t.Errorf("Formatted error should contain stack trace, got: %s", formatted)
+	t.Run("nil", func(t *testing.T) {
+		if FormatError(nil, true) != "" {
+			t.Error("FormatError(nil) should return empty string")
 		}
 	})
-}
-
-func TestConfigureStackTraces(t *testing.T) {
-	ConfigureStackTraces(true, 10)
-	if !captureStack || stackTraceDepth != 10 {
-		t.Errorf("ConfigureStackTraces failed")
-	}
-	ConfigureStackTraces(false, 32)
 }
 
 func TestBadKeysAndCoverage(t *testing.T) {
@@ -369,27 +297,26 @@ func TestBadKeysAndCoverage(t *testing.T) {
 		t.Error("Wrapf should handle nil err")
 	}
 
-	// 2. FormatStack with no stack
-	err := NewError(ctx, "msg").(*Error)
-	if err.FormatStack() != "no stack trace available" {
-		t.Error("FormatStack should return 'no stack trace available'")
-	}
+	// 2. NewError basic round-trip
+	_ = NewError(ctx, "msg")
 
 	// 3. newError dangling key
-	err2 := NewError(ctx, "msg", "key", "val", "dangling").(*Error)
-	if len(err2.Crumbs) != 2 || err2.Crumbs[1].Key != "!BADKEY" || err2.Crumbs[1].Value != "dangling" {
+	err2 := NewError(ctx, "msg", "key", "val", "dangling")
+	c2 := err2.GetCrumbs()
+	if len(c2) != 2 || c2[1].Key != "!BADKEY" || c2[1].Value != "dangling" {
 		t.Error("Dangling key not mapped to !BADKEY")
 	}
 
 	// 4. newError odd key that is not string
-	err3 := NewError(ctx, "msg", "key", "val", 123).(*Error)
-	if len(err3.Crumbs) != 2 || err3.Crumbs[1].Key != "!BADKEY" || err3.Crumbs[1].Value != 123 {
+	err3 := NewError(ctx, "msg", "key", "val", 123)
+	c3 := err3.GetCrumbs()
+	if len(c3) != 2 || c3[1].Key != "!BADKEY" || c3[1].Value != 123 {
 		t.Error("Odd non-string key not mapped to !BADKEY")
 	}
 
 	// 4b. newError even non-string key ignored
-	err3b := NewError(ctx, "msg", 123, "val").(*Error)
-	if len(err3b.Crumbs) != 0 {
+	err3b := NewError(ctx, "msg", 123, "val")
+	if len(err3b.GetCrumbs()) != 0 {
 		t.Error("Even non-string key not ignored")
 	}
 
@@ -414,11 +341,11 @@ func TestBadKeysAndCoverage(t *testing.T) {
 	}
 
 	// 8. Error method fallbacks
-	var emptyErr *Error = &Error{}
+	emptyErr := &Error{}
 	if emptyErr.Error() != "unknown error" {
 		t.Error("Empty Error.Error() failed")
 	}
-	wrapErr := &Error{Err: errors.New("base")}
+	wrapErr := &Error{cause: errors.New("base")}
 	if wrapErr.Error() != "base" {
 		t.Error("Error() falling back to base failed")
 	}
@@ -431,5 +358,151 @@ func TestGetCrumbsNil(t *testing.T) {
 	}
 	if GetCrumbs(context.Background()) != nil {
 		t.Error("GetCrumbs(emptyCtx) should be nil")
+	}
+}
+
+// --- Regression tests for review fixes ---
+
+// #1: Errorf/Wrapf must not inject a phantom !BADKEY crumb.
+func TestErrorfNoPhantomCrumb(t *testing.T) {
+	ctx := context.Background()
+	err := Errorf(ctx, "formatted %d", 1)
+	if len(err.GetCrumbs()) != 0 {
+		t.Errorf("Errorf should produce no crumbs, got %+v", err.GetCrumbs())
+	}
+}
+
+func TestWrapfNoPhantomCrumb(t *testing.T) {
+	ctx := context.Background()
+	base := errors.New("base")
+	err := Wrapf(ctx, base, "formatted %d", 1).(*Error)
+	if len(err.GetCrumbs()) != 0 {
+		t.Errorf("Wrapf should produce no crumbs, got %+v", err.GetCrumbs())
+	}
+}
+
+// #3: ctx crumbs must not duplicate across wraps.
+func TestNoDuplicateCtxCrumbsOnWrap(t *testing.T) {
+	ctx := AddCrumb(context.Background(), "req", "r-1", "user", "u-1")
+
+	err1 := NewError(ctx, "inner")
+	err2 := WrapError(ctx, err1, "middle")
+	err3 := WrapError(ctx, err2, "outer")
+
+	cerr := err3.(*Error)
+	counts := map[string]int{}
+	for _, c := range cerr.GetCrumbs() {
+		counts[c.Key]++
+	}
+	if counts["req"] != 1 || counts["user"] != 1 {
+		t.Errorf("expected each ctx crumb exactly once, got %v", counts)
+	}
+}
+
+// GetCrumbs must return a defensive copy.
+func TestGetCrumbsReturnsCopy(t *testing.T) {
+	ctx := context.Background()
+	err := NewError(ctx, "msg", "k", "v")
+	copy1 := err.GetCrumbs()
+	if len(copy1) != 1 {
+		t.Fatalf("expected 1 crumb, got %d", len(copy1))
+	}
+	copy1[0].Value = "mutated"
+	copy2 := err.GetCrumbs()
+	if copy2[0].Value != "v" {
+		t.Errorf("internal slice was mutated via GetCrumbs result: %v", copy2[0].Value)
+	}
+}
+
+// #10: AddCrumb upsert by key.
+func TestAddCrumbDedup(t *testing.T) {
+	ctx := context.Background()
+	ctx = AddCrumb(ctx, "k", "v1")
+	ctx = AddCrumb(ctx, "k", "v2")
+
+	all := GetCrumbs(ctx)
+	if len(all) != 1 {
+		t.Fatalf("expected single crumb after upsert, got %d: %+v", len(all), all)
+	}
+	if all[0].Value != "v2" {
+		t.Errorf("expected last-write-wins value 'v2', got %v", all[0].Value)
+	}
+}
+
+// (*Error).With must append/replace crumbs in place.
+func TestErrorWith(t *testing.T) {
+	ctx := context.Background()
+	err := Errorf(ctx, "code %d", 500)
+	if len(err.GetCrumbs()) != 0 {
+		t.Fatalf("Errorf must produce no crumbs, got %+v", err.GetCrumbs())
+	}
+	err.With("op", "x", "user", "u-1")
+	got := err.GetCrumbs()
+	if len(got) != 2 {
+		t.Fatalf("expected 2 crumbs after With, got %d", len(got))
+	}
+	// last-write-wins
+	err.With("op", "y")
+	got = err.GetCrumbs()
+	if len(got) != 2 {
+		t.Fatalf("expected 2 crumbs after dedup-With, got %d: %+v", len(got), got)
+	}
+	for _, c := range got {
+		if c.Key == "op" && c.Value != "y" {
+			t.Errorf("With did not overwrite op, got %v", c.Value)
+		}
+	}
+}
+
+// Message / Cause accessors expose state without exposing internals.
+func TestErrorMessageAndCause(t *testing.T) {
+	ctx := context.Background()
+	base := errors.New("base")
+	err := WrapError(ctx, base, "wrapped").(*Error)
+	if err.Message() != "wrapped" {
+		t.Errorf("Message() = %q, want %q", err.Message(), "wrapped")
+	}
+	if err.Cause() != base {
+		t.Errorf("Cause() = %v, want %v", err.Cause(), base)
+	}
+	plain := NewError(ctx, "x")
+	if plain.Cause() != nil {
+		t.Errorf("Cause() should be nil for non-wrapping error, got %v", plain.Cause())
+	}
+}
+
+// Regression: concurrent (*Error).With on the inner error must not race with
+// WrapError reading inner.crumbs. Run with `go test -race` to surface failures.
+func TestWrapRaceOnInnerCrumbs(t *testing.T) {
+	ctx := context.Background()
+	inner := NewError(ctx, "inner", "k0", "v0")
+
+	done := make(chan struct{})
+	go func() {
+		for i := 0; i < 2000; i++ {
+			inner.With("k0", i, "k1", i)
+		}
+		close(done)
+	}()
+	for i := 0; i < 2000; i++ {
+		_ = WrapError(ctx, inner, "outer")
+	}
+	<-done
+}
+
+// #2: New / Wrap aliases must exist and behave like NewError / WrapError.
+func TestNewWrapAliases(t *testing.T) {
+	ctx := context.Background()
+	err := New(ctx, "hi")
+	if err.Error() != "hi" {
+		t.Errorf("New alias failed: %v", err)
+	}
+	base := errors.New("base")
+	wrapped := Wrap(ctx, base, "outer")
+	if !errors.Is(wrapped, base) {
+		t.Errorf("Wrap alias did not preserve identity")
+	}
+	if Wrap(ctx, nil, "x") != nil {
+		t.Error("Wrap(nil) should return nil")
 	}
 }

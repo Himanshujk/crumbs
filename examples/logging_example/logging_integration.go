@@ -85,15 +85,6 @@ func LogError(logger Logger, err error) {
 			fields[c.Key] = c.Value
 		}
 
-		// Add stack trace if available
-		stack := cerr.GetStack()
-		if len(stack) > 0 {
-			frames := make([]string, 0, len(stack))
-			for _, frame := range stack {
-				frames = append(frames, fmt.Sprintf("%s:%d", frame.File, frame.Line))
-			}
-			fields["stack"] = frames
-		}
 	}
 
 	logger.Error(msg, fields)
@@ -112,10 +103,6 @@ func DemonstrateLoggingIntegration() {
 		"requestID", "req-abcd",
 		"userID", "user-1234",
 	)
-
-	// Enable stack traces for this example
-	crumbs.ConfigureStackTraces(true, 32)
-	defer func() { crumbs.ConfigureStackTraces(false, 32) }()
 
 	// Create an error with additional crumbs
 	err := crumbs.NewError(ctx, "operation failed",

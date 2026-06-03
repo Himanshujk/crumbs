@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	benchErr      = errors.New("benchmark error")
+	errBench      = errors.New("benchmark error")
 	benchResult   error
 	benchCtxCrumb context.Context
 )
@@ -40,21 +40,21 @@ func BenchmarkCrumbsNewErrorWithCrumbs(b *testing.B) {
 // Benchmarks for error wrapping
 func BenchmarkErrorsWrap(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		benchResult = fmt.Errorf("wrapped: %w", benchErr)
+		benchResult = fmt.Errorf("wrapped: %w", errBench)
 	}
 }
 
 func BenchmarkCrumbsWrapError(b *testing.B) {
 	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
-		benchResult = WrapError(ctx, benchErr, "wrapped")
+		benchResult = WrapError(ctx, errBench, "wrapped")
 	}
 }
 
 func BenchmarkCrumbsWrapErrorWithCrumbs(b *testing.B) {
 	ctx := context.Background()
 	for i := 0; i < b.N; i++ {
-		benchResult = WrapError(ctx, benchErr, "wrapped",
+		benchResult = WrapError(ctx, errBench, "wrapped",
 			"key1", "value1",
 			"key2", 2,
 			"key3", true)
@@ -94,31 +94,6 @@ func BenchmarkGetCrumbs(b *testing.B) {
 	_ = result
 }
 
-// Benchmarks with stack traces
-func BenchmarkNewErrorWithStackTraceEnabled(b *testing.B) {
-	ctx := context.Background()
-	origSetting := captureStack
-	captureStack = true
-	defer func() { captureStack = origSetting }()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		benchResult = NewError(ctx, "benchmark error")
-	}
-}
-
-func BenchmarkNewErrorWithStackTraceDisabled(b *testing.B) {
-	ctx := context.Background()
-	origSetting := captureStack
-	captureStack = false
-	defer func() { captureStack = origSetting }()
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		benchResult = NewError(ctx, "benchmark error")
-	}
-}
-
 // Benchmark error formatting
 func BenchmarkFormatError(b *testing.B) {
 	ctx := context.Background()
@@ -127,22 +102,7 @@ func BenchmarkFormatError(b *testing.B) {
 	b.ResetTimer()
 	var result string
 	for i := 0; i < b.N; i++ {
-		result = FormatError(err, false, true)
-	}
-	_ = result
-}
-
-func BenchmarkFormatErrorWithStack(b *testing.B) {
-	ctx := context.Background()
-	origSetting := captureStack
-	captureStack = true
-	err := NewError(ctx, "benchmark error", "key1", "value1", "key2", 2)
-	captureStack = origSetting
-
-	b.ResetTimer()
-	var result string
-	for i := 0; i < b.N; i++ {
-		result = FormatError(err, true, true)
+		result = FormatError(err, true)
 	}
 	_ = result
 }

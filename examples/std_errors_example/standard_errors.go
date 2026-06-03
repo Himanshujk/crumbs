@@ -64,7 +64,7 @@ func DemonstrateStandardErrorsMethods() {
 
 	// Check if the deeply nested error still matches the sentinel error
 	fmt.Printf("Is deepErr a Permission error? %v\n", errors.Is(deepErr, ErrPermission))
-	fmt.Printf("Formatted error chain:\n%s\n", crumbs.FormatError(deepErr, false, true))
+	fmt.Printf("Formatted error chain:\n%s\n", crumbs.FormatError(deepErr, true))
 
 	// Example 3: Using errors.As with custom error types
 	fmt.Println("\n3. Using errors.As with custom error types:")

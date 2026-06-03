@@ -29,19 +29,10 @@ Shows how to work with context:
 - Automatically capturing context crumbs in errors
 - Extracting crumbs from errors and contexts
 
-### Stack Traces
-
-Demonstrates stack trace capabilities:
-- Enabling/disabling stack traces globally
-- Configuring stack trace depth
-- Forcing stack traces for specific errors
-- Formatting and displaying stack traces
-
 ### Logging Integration
 
 Shows how to integrate with logging libraries:
 - Extracting crumbs from errors for structured logging
-- Including stack traces in logs
 - Working with error chains and wrapped errors
 
 ### Standard Library Errors Integration
@@ -57,5 +48,4 @@ Demonstrates compatibility with the standard library errors package:
 
 - **Crumbs**: Key-value pairs that provide context to errors
 - **Context Integration**: Automatically including context information in errors
-- **Stack Traces**: Optional capturing of stack traces for debugging
 - **Standard Library Compatibility**: Works with `errors.Is` and `errors.As`
