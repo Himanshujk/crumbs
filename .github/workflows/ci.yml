@@ -62,7 +62,7 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Run golangci-lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v7
       with:
         version: v2.6.0
 
@@ -82,7 +82,11 @@ jobs:
       run: go mod download
       
     - name: Generate coverage report
-      run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      # Exclude examples/* packages: they are demo code with no tests and
+      # would otherwise dilute the headline coverage number.
+      run: |
+        PKGS=$(go list ./... | grep -v '/examples')
+        go test -race -covermode=atomic -coverprofile=coverage.out $PKGS
       
     - name: Upload coverage to Coveralls
       uses: coverallsapp/github-action@v2
