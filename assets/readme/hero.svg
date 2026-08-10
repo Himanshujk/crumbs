@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="420" viewBox="0 0 1200 420"
+     role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">Crumbs — structured context for Go errors</title>
+  <desc id="hero-desc">A crumb dropped into context.Background(), carried through AddCrumb and Wrap, and landing intact in a structured log line.</desc>
+
+  <defs>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="420" rx="26" fill="#0B0D10"/>
+  <rect x="1" y="1" width="1198" height="418" rx="25" fill="none" stroke="#1B1F24" stroke-width="1.5"/>
+
+  <!-- divider -->
+  <line x1="632" y1="56" x2="632" y2="380" stroke="#7C8792" stroke-opacity="0.25" stroke-width="1.5"/>
+
+  <!-- title block -->
+  <g class="sans">
+    <text x="64" y="60" class="mono" font-size="15" letter-spacing="2" fill="#7C8792">GO LIBRARY&#160;&#160;&#183;&#160;&#160;STRUCTURED ERROR CONTEXT</text>
+
+    <circle cx="72" cy="122" r="7" fill="#E2A34E"/>
+    <circle cx="72" cy="122" r="12" fill="none" stroke="#E2A34E" stroke-opacity="0.4" stroke-width="1.5"/>
+    <text x="96" y="138" font-size="80" font-weight="700" fill="#F3EFE8">Crumbs</text>
+
+    <text x="65" y="196" font-size="21" fill="#F3EFE8" fill-opacity="0.88">Structured key-value context that travels</text>
+    <text x="65" y="226" font-size="21" fill="#F3EFE8" fill-opacity="0.88">from <tspan class="mono" fill="#E2A34E">ctx</tspan>, through your error chain, to your logs.</text>
+
+    <rect x="64" y="326" width="460" height="44" rx="22" fill="#14181D" stroke="#7C8792" stroke-opacity="0.3"/>
+    <text x="84" y="354" class="mono" font-size="16" fill="#F3EFE8">$ go get github.com/sri-shubham/crumbs</text>
+  </g>
+
+  <!-- mechanism preview -->
+  <g class="mono">
+    <line x1="700" y1="60" x2="700" y2="300" stroke="#7C8792" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="2 7"/>
+
+    <circle cx="700" cy="70" r="6" fill="#E2A34E"/>
+    <text x="726" y="75" font-size="16" fill="#F3EFE8" fill-opacity="0.9">ctx := context.Background()</text>
+
+    <circle cx="700" cy="150" r="6" fill="#E2A34E"/>
+    <circle cx="700" cy="150" r="10" fill="none" stroke="#E2A34E" stroke-opacity="0.4" stroke-width="1.5"/>
+    <text x="726" y="145" font-size="16" fill="#F3EFE8">AddCrumb(ctx,</text>
+    <text x="726" y="167" font-size="16" fill="#F3EFE8">&#160;&#160;"user_id", "u-42")</text>
+
+    <circle cx="700" cy="230" r="6" fill="#E2A34E"/>
+    <circle cx="700" cy="230" r="10" fill="none" stroke="#E2A34E" stroke-opacity="0.4" stroke-width="1.5"/>
+    <text x="726" y="225" font-size="16" fill="#F3EFE8">Wrap(ctx, err,</text>
+    <text x="726" y="247" font-size="16" fill="#F3EFE8">&#160;&#160;"db failure")</text>
+
+    <path d="M700 300 L700 312" stroke="#7C8792" stroke-opacity="0.35" stroke-width="1.5"/>
+    <path d="M694 306 L700 314 L706 306" fill="none" stroke="#7C8792" stroke-opacity="0.6" stroke-width="1.5"/>
+
+    <rect x="680" y="312" width="460" height="60" rx="14" fill="#14181D" stroke="#7C8792" stroke-opacity="0.3"/>
+    <circle cx="698" cy="328" r="3" fill="#7C8792" fill-opacity="0.6"/>
+    <circle cx="710" cy="328" r="3" fill="#7C8792" fill-opacity="0.6"/>
+    <circle cx="722" cy="328" r="3" fill="#7C8792" fill-opacity="0.6"/>
+    <text x="738" y="331" font-size="12" fill="#7C8792">log.Error output</text>
+    <text x="698" y="356" font-size="15" fill="#F3EFE8">{"err":"db failure","user_id":"u-42"}</text>
+  </g>
+</svg>

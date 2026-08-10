@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="440" viewBox="0 0 1200 440"
+     role="img" aria-labelledby="mech-title mech-desc">
+  <title id="mech-title">How crumbs flow: context, error, log line</title>
+  <desc id="mech-desc">A crumb added to context is carried into an error's snapshot alongside its own key-value pairs, then both land in the final log line with no duplicates.</desc>
+
+  <defs>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#7C8792" fill-opacity="0.7"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="440" rx="26" fill="#0B0D10"/>
+  <rect x="1" y="1" width="1198" height="438" rx="25" fill="none" stroke="#1B1F24" stroke-width="1.5"/>
+
+  <text x="68" y="56" class="sans" font-size="30" font-weight="700" fill="#F3EFE8">How crumbs flow</text>
+  <text x="68" y="82" class="mono" font-size="14" fill="#7C8792">context.Context&#160;&#8594;&#160;*crumbs.Error&#160;&#8594;&#160;log line</text>
+
+  <!-- connectors -->
+  <line x1="398" y1="250" x2="435" y2="250" stroke="#7C8792" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line x1="765" y1="250" x2="802" y2="250" stroke="#7C8792" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- card 1: context -->
+  <g>
+    <rect x="68" y="110" width="330" height="300" rx="18" fill="#14181D" stroke="#7C8792" stroke-opacity="0.3"/>
+    <text x="92" y="146" class="mono" font-size="13" letter-spacing="1.5" fill="#7C8792">1&#160;&#183;&#160;CONTEXT</text>
+
+    <text x="92" y="184" class="mono" font-size="15" fill="#F3EFE8">ctx := context.Background()</text>
+    <text x="92" y="210" class="mono" font-size="15" fill="#F3EFE8">ctx = AddCrumb(ctx,</text>
+    <text x="92" y="234" class="mono" font-size="15" fill="#F3EFE8">&#160;&#160;"request_id", "rid-1")</text>
+
+    <rect x="92" y="278" width="150" height="34" rx="17" fill="#0B0D10" stroke="#E2A34E" stroke-opacity="0.5"/>
+    <circle cx="110" cy="295" r="5" fill="#E2A34E"/>
+    <text x="124" y="300" class="mono" font-size="14" fill="#F3EFE8">request_id</text>
+
+    <text x="92" y="344" class="sans" font-size="14" fill="#7C8792">Held on ctx. Nothing is</text>
+    <text x="92" y="364" class="sans" font-size="14" fill="#7C8792">wrapped or logged yet.</text>
+  </g>
+
+  <!-- card 2: error -->
+  <g>
+    <rect x="435" y="110" width="330" height="300" rx="18" fill="#14181D" stroke="#7C8792" stroke-opacity="0.3"/>
+    <text x="459" y="146" class="mono" font-size="13" letter-spacing="1.5" fill="#7C8792">2&#160;&#183;&#160;ERROR</text>
+
+    <text x="459" y="184" class="mono" font-size="15" fill="#F3EFE8">err := crumbs.Wrap(ctx,</text>
+    <text x="459" y="208" class="mono" font-size="15" fill="#F3EFE8">&#160;&#160;dbErr, "query failed",</text>
+    <text x="459" y="232" class="mono" font-size="15" fill="#F3EFE8">&#160;&#160;"table", "users")</text>
+
+    <rect x="459" y="278" width="140" height="34" rx="17" fill="#0B0D10" stroke="#E2A34E" stroke-opacity="0.5"/>
+    <circle cx="477" cy="295" r="5" fill="#E2A34E"/>
+    <text x="491" y="300" class="mono" font-size="14" fill="#F3EFE8">request_id</text>
+    <rect x="609" y="278" width="100" height="34" rx="17" fill="#0B0D10" stroke="#E2A34E" stroke-opacity="0.5"/>
+    <circle cx="627" cy="295" r="5" fill="#E2A34E"/>
+    <text x="641" y="300" class="mono" font-size="14" fill="#F3EFE8">table</text>
+
+    <text x="459" y="344" class="sans" font-size="14" fill="#7C8792">Snapshots ctx crumbs once,</text>
+    <text x="459" y="364" class="sans" font-size="14" fill="#7C8792">then adds its own kv pairs.</text>
+  </g>
+
+  <!-- card 3: log line -->
+  <g>
+    <rect x="802" y="110" width="330" height="300" rx="18" fill="#14181D" stroke="#7C8792" stroke-opacity="0.3"/>
+    <text x="826" y="146" class="mono" font-size="13" letter-spacing="1.5" fill="#7C8792">3&#160;&#183;&#160;LOG LINE</text>
+
+    <text x="826" y="184" class="mono" font-size="15" fill="#F3EFE8">log.Error(ctx, "failed",</text>
+    <text x="826" y="208" class="mono" font-size="15" fill="#F3EFE8">&#160;&#160;"err", err)</text>
+
+    <rect x="826" y="234" width="282" height="92" rx="12" fill="#0B0D10" stroke="#7C8792" stroke-opacity="0.3"/>
+    <circle cx="844" cy="250" r="3" fill="#7C8792" fill-opacity="0.6"/>
+    <circle cx="856" cy="250" r="3" fill="#7C8792" fill-opacity="0.6"/>
+    <circle cx="868" cy="250" r="3" fill="#7C8792" fill-opacity="0.6"/>
+    <text x="884" y="253" class="mono" font-size="12" fill="#7C8792">structured attrs</text>
+    <text x="844" y="276" class="mono" font-size="14" fill="#F3EFE8">request_id: "rid-1"</text>
+    <text x="844" y="298" class="mono" font-size="14" fill="#F3EFE8">table:&#160;&#160;&#160;&#160;&#160;&#160;"users"</text>
+    <text x="826" y="360" class="sans" font-size="14" fill="#7C8792">Both crumbs, no duplicates,</text>
+    <text x="826" y="380" class="sans" font-size="14" fill="#7C8792">no manual plumbing.</text>
+  </g>
+</svg>
