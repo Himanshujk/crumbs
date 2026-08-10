@@ -1,226 +1,166 @@
-# Crumbs
+<p align="center">
+  <img src="./assets/readme/hero.svg" width="100%" alt="Crumbs — structured key-value context that travels from context.Context, through your error chain, to your logs">
+</p>
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/sri-shubham/crumbs)](https://goreportcard.com/report/github.com/sri-shubham/crumbs)
-[![GoDoc](https://godoc.org/github.com/sri-shubham/crumbs?status.svg)](https://godoc.org/github.com/sri-shubham/crumbs)
-[![Coverage Status](https://coveralls.io/repos/github/sri-shubham/crumbs/badge.svg?branch=main)](https://coveralls.io/github/sri-shubham/crumbs?branch=main)
-[![GitHub Stars](https://img.shields.io/github/stars/sri-shubham/crumbs.svg)](https://github.com/sri-shubham/crumbs/stargazers)
-[![GitHub Issues](https://img.shields.io/github/issues/sri-shubham/crumbs.svg)](https://github.com/sri-shubham/crumbs/issues)
+<p align="center">
+  <a href="https://goreportcard.com/report/github.com/sri-shubham/crumbs"><img src="https://goreportcard.com/badge/github.com/sri-shubham/crumbs" alt="Go Report Card"></a>
+  <a href="https://pkg.go.dev/github.com/sri-shubham/crumbs"><img src="https://pkg.go.dev/badge/github.com/sri-shubham/crumbs.svg" alt="Go Reference"></a>
+  <a href="https://coveralls.io/github/sri-shubham/crumbs?branch=main"><img src="https://coveralls.io/repos/github/sri-shubham/crumbs/badge.svg?branch=main" alt="Coverage Status"></a>
+  <img src="https://img.shields.io/badge/go-%E2%89%A51.22-00ADD8?logo=go&logoColor=white" alt="Go 1.22+">
+  <a href="https://github.com/sri-shubham/crumbs/stargazers"><img src="https://img.shields.io/github/stars/sri-shubham/crumbs.svg" alt="GitHub Stars"></a>
+  <a href="https://github.com/sri-shubham/crumbs/issues"><img src="https://img.shields.io/github/issues/sri-shubham/crumbs.svg" alt="GitHub Issues"></a>
+</p>
 
-Crumbs is a rich observability library for Go that bridges the gap between error handling and structured logging. It allows you to attach rich, structured data ("crumbs") to your errors and context, which can then be automatically extracted by your logger or error reporter. This ensures that every error log contains the full context needed for debugging, without cluttering your function signatures.
+Crumbs attaches structured key-value data — "crumbs" — to a `context.Context`
+and to the errors you wrap. Every crumb rides along the wrap chain
+automatically, so the log line at the top of your call stack can carry the
+full story (request ID, table, user, whatever you attached) without any
+function signature threading it through by hand.
 
-## Features
+## How it flows
 
-- **Rich Observability**: Carry structured data through your call stack and attach it to errors automatically
-- **Logger Enrichment**: Feed your structured logger (like `slog`) with rich context captured deep within your application logic
-- **Context Integration**: Seamlessly propagate observability data via Go's `context.Context`
-- **Standard Library Compatible**: Works seamlessly with `errors.Is`, `errors.As`, and `errors.Unwrap`
-- **Low-Allocation Hot Paths**: Optimized for high-performance applications; common operations stay at 1–2 allocations (see benchmarks below)
+<p align="center">
+  <img src="./assets/readme/mechanism.svg" width="100%" alt="Diagram: a crumb added to context is carried into an error's snapshot alongside its own key-value pairs, then both land in the final log line with no duplicates">
+</p>
 
-## Installation
+- **Context crumbs are snapshotted once**, when an `*Error` is created —
+  not re-read as the error bubbles up, so nothing duplicates.
+- **Crumbs on the same key last-write-wins**, whether they arrive via
+  `AddCrumb`, a constructor, or `.With(...)`.
+- **Nothing is mutated in place** — `AddCrumb` returns a new `context.Context`
+  and every accessor (`GetCrumbs`) hands back a defensive copy.
+
+## Install
 
 ```bash
 go get github.com/sri-shubham/crumbs
 ```
 
-## Quick Start
+## Quick start
 
 ```go
+package main
+
 import (
-    "context"
-    "errors"
-    "fmt"
-    "github.com/sri-shubham/crumbs"
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/sri-shubham/crumbs"
 )
 
 func main() {
-    ctx := context.Background()
-    
-    // Add crumbs to the context
-    ctx = crumbs.AddCrumb(ctx,
-        "requestID", "req-12345",
-        "userID", "user-abc",
-    )
-    
-    // Create a new error with additional crumbs.
-    // `New` / `Wrap` are aliases for `NewError` / `WrapError`.
-    err := crumbs.New(ctx, "operation failed",
-        "operation", "getData",
-        "status", 500,
-    )
-    
-    // Print detailed error with crumbs
-    fmt.Println(crumbs.FormatError(err, true))
-    
-    // Works with standard errors package
-    baseErr := errors.New("connection failed")
-    wrappedErr := crumbs.Wrap(ctx, baseErr, "database error")
-    
-    if errors.Is(wrappedErr, baseErr) {
-        fmt.Println("Error identity preserved!")
+	ctx := context.Background()
+	ctx = crumbs.AddCrumb(ctx, "requestID", "req-12345", "userID", "user-abc")
+
+	err := crumbs.New(ctx, "operation failed", "operation", "getData", "status", 500)
+	fmt.Println(crumbs.FormatError(err, true))
+	// operation failed
+	// Crumbs:
+	//   requestID: req-12345
+	//   userID: user-abc
+	//   operation: getData
+	//   status: 500
+
+	// Standard errors.Is / errors.As still work through the wrap chain.
+	baseErr := errors.New("connection failed")
+	wrapped := crumbs.Wrap(ctx, baseErr, "database error")
+	fmt.Println(errors.Is(wrapped, baseErr)) // true
+}
+```
+
+## Core concepts
+
+**Creating and wrapping errors** — `New`/`NewError` build a fresh `*Error`;
+`Wrap`/`WrapError` attach a message to an existing error while preserving
+`errors.Is`/`errors.As` compatibility via `Unwrap`. Both accept trailing
+key-value pairs, and `Errorf`/`Wrapf` take a format string instead:
+
+```go
+err := crumbs.New(ctx, "request failed", "status", 404, "path", "/users/123")
+err = crumbs.Wrap(ctx, baseErr, "database query failed", "query", "SELECT * FROM users")
+err = crumbs.Errorf(ctx, "failed with code %d", 500)
+```
+
+**Adding crumbs after the fact** — chain `.With(...)` on any `*Error`
+(safe for concurrent use):
+
+```go
+err := crumbs.Errorf(ctx, "code %d", 500).With("op", "x")
+```
+
+**Reading crumbs back** — `GetCrumbs` works on both a `context.Context` and
+an `*Error`; on an error it returns the full merged set (ctx crumbs +
+everything added along the wrap chain):
+
+```go
+var cerr *crumbs.Error
+if errors.As(err, &cerr) {
+    for _, c := range cerr.GetCrumbs() {
+        fmt.Printf("%s: %v\n", c.Key, c.Value)
     }
 }
 ```
 
-## Core Concepts
+**Formatting** — `FormatError(err, includeCrumbs bool)` renders the message
+chain, optionally followed by the outermost `*Error`'s crumbs.
 
-### Creating Errors
+## Logging
 
-```go
-// Create a new error
-err := crumbs.New(ctx, "something went wrong")
-
-// Create with key-value pairs
-err := crumbs.New(ctx, "request failed", 
-    "status", 404,
-    "path", "/users/123",
-)
-
-// Create with formatting
-err := crumbs.Errorf(ctx, "failed with code %d", 500)
-```
-
-### Wrapping Errors
-
-```go
-// Wrap an existing error
-baseErr := errors.New("network timeout")
-err := crumbs.Wrap(ctx, baseErr, "API request failed")
-
-// Wrap with key-value pairs
-err := crumbs.Wrap(ctx, baseErr, "database query failed",
-    "query", "SELECT * FROM users",
-    "params", []string{"id=123"},
-)
-
-// Wrap with formatting
-err := crumbs.Wrapf(ctx, baseErr, "operation %s failed", "getData")
-```
-
-### Working with Context
-
-```go
-// Add crumbs to context
-ctx = crumbs.AddCrumb(ctx, "userID", "user-123")
-
-// Add multiple crumbs
-ctx = crumbs.AddCrumb(ctx, 
-    "requestID", "req-abc",
-    "traceID", "trace-xyz",
-    "timestamp", time.Now(),
-)
-
-// Get crumbs from context (returns []Crumb)
-allCrumbs := crumbs.GetCrumbs(ctx)
-for _, c := range allCrumbs {
-    fmt.Printf("Key: %s, Value: %v\n", c.Key, c.Value)
-}
-```
-
-### Error Formatting
-
-```go
-// Format error with crumbs
-formatted := crumbs.FormatError(err, true)
-
-// Format without crumbs (just the message chain)
-formatted := crumbs.FormatError(err, false)
-```
-
-### Extracting Data
-
-With `crumbs`, context is seamlessly merged all the way up the error chain. When you call `GetCrumbs()` on an error wrapper, it organically provides all key-value pairs collected at every level!
-
-```go
-if cerr, ok := err.(*crumbs.Error); ok {
-    // Get all nested crumbs from the entire error chain
-    allCrumbs := cerr.GetCrumbs()
-    for _, c := range allCrumbs {
-        fmt.Printf("Key: %s, Value: %v\n", c.Key, c.Value)
-    }
-}
-```
-
-## Logging Integration
-
-Crumbs integrates seamlessly with modern structured logging like `log/slog`.
-For the quickest path, use the first-class adapter at
-[`integrations/slog`](./integrations/slog) which extracts crumbs automatically
-from both context and errors:
+The first-class [`integrations/slog`](./integrations/slog) adapter extracts
+crumbs from context and from any `*crumbs.Error` in the log args
+automatically — no manual plumbing:
 
 ```go
 import crumbslog "github.com/sri-shubham/crumbs/integrations/slog"
 
 log := crumbslog.New(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
-log.Error(ctx, "operation failed", "error", err) // crumbs splatted automatically
+log.Error(ctx, "operation failed", "err", err) // crumbs splatted automatically
 ```
 
-If you prefer to wire `slog` yourself, the patterns below show manual
-extraction:
+`With(args...)` on the adapter works the same way: anything you pin there
+still gets stringified and crumb-extracted on every subsequent call.
+
+<details>
+<summary>Wiring <code>log/slog</code> yourself, without the adapter</summary>
 
 ```go
-import "log/slog"
-
-// LogError logs an error along with all its attached crumbs
 func LogError(logger *slog.Logger, msg string, err error) {
-    // Start with the error itself
-    args := []any{"error", err}
+	args := []any{"error", err}
 
-    // Extract crumbs if available
-    var cerr *crumbs.Error
-    if errors.As(err, &cerr) {
-        for _, c := range cerr.GetCrumbs() {
-            // Add each crumb as a key-value pair
-            args = append(args, slog.Any(c.Key, c.Value))
-        }
-    }
+	var cerr *crumbs.Error
+	if errors.As(err, &cerr) {
+		for _, c := range cerr.GetCrumbs() {
+			args = append(args, slog.Any(c.Key, c.Value))
+		}
+	}
 
-    // Log with all context
-    logger.Error(msg, args...)
-}
-
-// LoggerWithCrumbs creates a logger pre-filled with error context
-func LoggerWithCrumbs(logger *slog.Logger, err error) *slog.Logger {
-    var cerr *crumbs.Error
-    if errors.As(err, &cerr) {
-        crumbs := cerr.GetCrumbs()
-        args := make([]any, 0, len(crumbs)*2)
-        for _, c := range crumbs {
-            args = append(args, c.Key, c.Value)
-        }
-        return logger.With(args...)
-    }
-    return logger
+	logger.Error(msg, args...)
 }
 ```
 
-## Examples
-
-See the [examples](./examples) directory for comprehensive usage examples:
-
-- Basic usage patterns
-- Context integration
-- Logging integration
-- Standard library errors compatibility
-- HTTP middleware
+</details>
 
 ## Integrations
 
-Crumbs is designed to play nicely with the Go ecosystem.
+- **[slog adapter](./integrations/slog)** — `logger.Logger` implementation on
+  top of `log/slog`.
+- **[logger interface](./logger)** — the generic interface to target if you
+  want to build an adapter for another logging backend.
+- **[Middleware example](./examples/middleware_example)** — capture
+  request-scoped metadata (request ID, user ID, path) at the edge and
+  propagate it through `context.Context`.
 
-### Logging
+## Examples
 
-We provide a first-class integration for `log/slog` via the `integrations/slog` package. This adapter automatically extracts crumbs from your context and errors, injecting them as structured attributes into your logs.
-
-- **[slog Adapter](./integrations/slog)**: Seamless integration with Go's structured logger.
-- **[Logger Interface](./logger)**: A generic interface for building your own logging adapters.
-
-### Middleware
-
-Crumbs works great with HTTP middleware to capture request-scoped metadata (like Request ID, User ID, Path) at the edge and propagate it automatically through your application. See the [Middleware Example](./examples/middleware_example) for a demonstration.
+The [examples](./examples) directory has runnable code for basic usage,
+context propagation, logging integration, standard-library `errors`
+compatibility, and HTTP middleware.
 
 ## Benchmarks
 
-Performance is a key consideration in error handling. Below are benchmark results comparing standard errors with Crumbs:
+Common operations stay at 1–2 allocations. Measured on Apple M1
+(`go test -bench=. -benchmem`):
 
 ```
 goos: darwin
@@ -239,12 +179,14 @@ BenchmarkGetCrumbs-8                         43355341                27.47 ns/op
 BenchmarkFormatError-8                        4431264               271.9 ns/op           184 B/op           8 allocs/op
 ```
 
-For more detailed benchmark information and analysis, see [BENCHMARKS.md](./BENCHMARKS.md).
+See [BENCHMARKS.md](./BENCHMARKS.md) for what each benchmark measures and
+[CHANGELOG.md](./CHANGELOG.md) for release history.
 
 ## Contributing
 
-Contributions are welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for details on how to contribute to this project.
+Contributions are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) for bug
+report, pull request, and style guidelines.
 
 ## License
 
-[MIT License](./LICENSE) - Copyright (c) 2025 Shubham Srivastava
+[MIT License](./LICENSE) — Copyright (c) 2025 Shubham Srivastava
