@@ -193,3 +193,42 @@ func TestAdapter_With(t *testing.T) {
 		t.Errorf("ctx crumb missing, got %v", entry["request_id"])
 	}
 }
+
+// Regression: an error passed via With must still be stringified and have
+// its crumbs splatted on every subsequent call, same as when passed at the
+// call site. Previously With baked args straight into slog.Logger.With,
+// bypassing the adapter's error/crumb extraction entirely.
+func TestAdapter_WithPreservesErrorCrumbs(t *testing.T) {
+	var buf bytes.Buffer
+	h := slog.NewJSONHandler(&buf, &slog.HandlerOptions{Level: slog.LevelDebug})
+	adapter := crumbslog.New(slog.New(h))
+	ctx := context.Background()
+
+	richErr := crumbs.New(ctx, "db failure", "table", "users", "retry", 3)
+	child := adapter.With("err", richErr)
+
+	child.Info(ctx, "first call")
+	var entry map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if entry["err"] != "db failure" {
+		t.Errorf("expected err stringified to 'db failure', got %v", entry["err"])
+	}
+	if entry["table"] != "users" {
+		t.Errorf("expected table crumb 'users', got %v", entry["table"])
+	}
+	if entry["retry"] != float64(3) {
+		t.Errorf("expected retry crumb 3, got %v", entry["retry"])
+	}
+
+	// Crumbs must reappear on a second call too, not just the first.
+	buf.Reset()
+	child.Info(ctx, "second call")
+	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if entry["table"] != "users" {
+		t.Errorf("expected table crumb on second call, got %v", entry["table"])
+	}
+}
